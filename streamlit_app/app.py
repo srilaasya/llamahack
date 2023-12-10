@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from together_task_output import generate_task_response
-from chart_generator import generate_chart, clean_data
+from chart_generator import generate_chart
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -45,27 +45,27 @@ def transcribe_audio():
 def get_tasks():
     tasks = generate_task_response(EPIC_PROMPT)
     global TASKS
-    TASKS = tasks.replace("[OUTPUT] ", "")
-    #st.write(TASKS)
+    TASKS = tasks.replace("[OUTPUT]", "")
+    st.write(TASKS)
     TASKS = json.loads(TASKS)
-    TASKS = clean_data(TASKS)
+    #TASKS = clean_data(TASKS)
     st.header('Tasks Generated using')
     st.image('static/together-ai_logo.png')
 
 
-def create_tasks():
-    global TASKS
-    headers = {
-        'Content-Type': 'application/json'
-    }
-    #tasks = clean_data(TASKS)
-    for task in TASKS:
-        print(task)
-        response = requests.post(f'{DATABASE_API_URL}tasks', headers=headers, data=json.dumps(task))
-        if response.status_code == 201:
-            st.success('Task created successfully')
-        else:
-            st.error('Error creating task')
+# def create_tasks_in_db():
+#     tasks_copy = TASKS.copy()
+#     headers = {
+#         'Content-Type': 'application/json'
+#     }
+#     #tasks = clean_data(TASKS)
+#     for task in tasks_copy:
+#         print(task)
+#         response = requests.post(f'{DATABASE_API_URL}tasks', headers=headers, data=json.dumps(task))
+#         if response.status_code == 201:
+#             st.success('Task created successfully')
+#         else:
+#             st.error('Error creating task')
 
 def view_tasks():
     fig = generate_chart(TASKS)
@@ -114,7 +114,6 @@ if state['audio_collected']:
         view_tasks()
         transcribing_progress.progress(100, text='Tasks Created')
 
-        #create_tasks()
         st.snow()
 
 
