@@ -5,12 +5,21 @@ import time
 import pyaudio
 import requests
 import os
+import json
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from together_task_output import generate_task_response
+from chart_generator import generate_chart, clean_data
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1 if sys.platform == 'darwin' else 2
 RATE = 44100
 RECORD_SECONDS = 7
+EPIC_PROMPT = ''
+TASKS = []
 
 DATABASE_API_URL = os.getenv('DATABASE_API_URL')
 BACKEND_API_URL = os.getenv('BACKEND_API_URL')
@@ -22,18 +31,45 @@ def transcribe_audio():
     headers = {
         'Content-Type': 'audio/mp3'
     }
+
     response = requests.post(f'{BACKEND_API_URL}process_audio', headers=headers, data=payload)
     if response.status_code == 200:
         transcript = response.content.decode('utf-8')
-        st.write(transcript)
+        transcript = json.loads(transcript)
+        global  EPIC_PROMPT
+        EPIC_PROMPT = transcript.get('text')
+        st.title(EPIC_PROMPT)
     else:
-        st.write('Error transcribing audio')
+        st.error('Error transcribing audio')
 
 def get_tasks():
-    time.sleep(2)
+    tasks = generate_task_response(EPIC_PROMPT)
+    global TASKS
+    TASKS = tasks.replace("[OUTPUT] ", "")
+    #st.write(TASKS)
+    TASKS = json.loads(TASKS)
+    TASKS = clean_data(TASKS)
+    st.header('Tasks Generated using')
+    st.image('static/together-ai_logo.png')
+
 
 def create_tasks():
-    time.sleep(2)
+    global TASKS
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    #tasks = clean_data(TASKS)
+    for task in TASKS:
+        print(task)
+        response = requests.post(f'{DATABASE_API_URL}tasks', headers=headers, data=json.dumps(task))
+        if response.status_code == 201:
+            st.success('Task created successfully')
+        else:
+            st.error('Error creating task')
+
+def view_tasks():
+    fig = generate_chart(TASKS)
+    st.write(fig)
 
 
 state = st.session_state
@@ -63,27 +99,24 @@ if audio_interface_container.button('Get Started', use_container_width=True):
 
 if state['audio_collected']:
     with st.spinner("Processing your request..."):
-        st.write("Transcribing audio...")
+        #st.caption("Transcribing audio...")
+        transcribing_progress = st.progress(0, text='Transcribing Audio...')
         transcribe_audio()
-        st.write("Fetching Tasks...")
-        get_tasks()
-        st.write("Creating Tasks...")
-        create_tasks()
+        transcribing_progress.progress(100, text='Transcribing Done')
 
-# import plotly.express as px
-# import pandas as pd
-#
-# df = pd.DataFrame([
-#     dict(Task="Job A", Start='2009-01-01', Finish='2009-02-28'),
-#     dict(Task="Job B", Start='2009-03-05', Finish='2009-04-15'),
-#     dict(Task="Job C", Start='2009-02-20', Finish='2009-05-30')
-# ])
-#
-# fig = px.timeline(df, x_start="Start", x_end="Finish", y="Task")
-# fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up
-# #fig.show()
-#
-# st.write(fig)
+        transcribing_progress = st.progress(0, text='Fetching Tasks...')
+        #st.caption("Fetching Tasks...")
+        get_tasks()
+        transcribing_progress.progress(100, text='Fetched Tasks')
+
+        #st.caption("Creating Tasks...")
+        transcribing_progress = st.progress(0, text='Creating Tasks...')
+        view_tasks()
+        transcribing_progress.progress(100, text='Tasks Created')
+
+        #create_tasks()
+        st.snow()
+
 
 # from st_audiorec import st_audiorec
 #
