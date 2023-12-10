@@ -19,7 +19,7 @@ from db_operations import (
 )
 from bson.objectid import ObjectId
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import json
 
@@ -46,32 +46,26 @@ def task_route(taskID):
         return delete_task_route(taskID)
 
 
-# def create_task_route():
-#     try:
-#         data = request.get_json()
-#         # Validate the dueDate field
-#         due_date = data.get('dueDate')
-#         if due_date:
-#             try:
-#                 data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%fZ')
-#             except ValueError:
-#                 return jsonify({'error': 'Invalid dueDate format. It should be in ISO 8601 format.'}), 400
-#         task_id = create_task(data)
-#         return jsonify({'message': 'Task created', 'taskID': task_id}), 201
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 400
+def create_task_route():
+    try:
+        data = request.get_json()
+        task_id = create_task(data)
+        return jsonify({'message': 'Task created', 'taskID': task_id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 
 def create_or_update_task_route(taskID):
     try:
         data = request.get_json()
-        
-        # Validate the dueDate field
-        due_date = data.get('dueDate')
-        if due_date:
-            try:
-                data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%fZ')
-            except ValueError:
-                return jsonify({'error': 'Invalid dueDate format. It should be in ISO 8601 format.'}), 400
+
+        # Directly use the dueDate field if provided; otherwise calculate it
+        if 'dueDate' not in data:
+            # Calculate the dueDate based on the 'Timeframe' field in weeks
+            current_date = datetime.now().date()
+            time_frame = data.get('Timeframe', 1)  # Default to 1 week if not provided
+            calculated_due_date = current_date + timedelta(weeks=time_frame)
+            data['dueDate'] = calculated_due_date.strftime('%Y-%m-%d')
 
         # Check if the task exists
         existing_task = read_task(taskID)
@@ -89,7 +83,6 @@ def create_or_update_task_route(taskID):
 
     except Exception as e:
         return jsonify({'error': 'Error in create_or_update_task_route: ' + str(e)}), 400
-
 # def delete_all_tasks_route():
 #     try:
 #         delete_all_tasks()
