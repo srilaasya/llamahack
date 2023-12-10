@@ -4,6 +4,7 @@ import sys
 import time
 import pyaudio
 import requests
+import os
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -11,9 +12,22 @@ CHANNELS = 1 if sys.platform == 'darwin' else 2
 RATE = 44100
 RECORD_SECONDS = 7
 
+DATABASE_API_URL = os.getenv('DATABASE_API_URL')
+BACKEND_API_URL = os.getenv('BACKEND_API_URL')
 
 def transcribe_audio():
-    time.sleep(2)
+    # Send audio file to backend API for transcription
+    with open('output.mp3', 'rb') as f:
+        payload = f.read()
+    headers = {
+        'Content-Type': 'audio/mp3'
+    }
+    response = requests.post(f'{BACKEND_API_URL}process_audio', headers=headers, data=payload)
+    if response.status_code == 200:
+        transcript = response.content.decode('utf-8')
+        st.write(transcript)
+    else:
+        st.write('Error transcribing audio')
 
 def get_tasks():
     time.sleep(2)
@@ -55,6 +69,21 @@ if state['audio_collected']:
         get_tasks()
         st.write("Creating Tasks...")
         create_tasks()
+
+# import plotly.express as px
+# import pandas as pd
+#
+# df = pd.DataFrame([
+#     dict(Task="Job A", Start='2009-01-01', Finish='2009-02-28'),
+#     dict(Task="Job B", Start='2009-03-05', Finish='2009-04-15'),
+#     dict(Task="Job C", Start='2009-02-20', Finish='2009-05-30')
+# ])
+#
+# fig = px.timeline(df, x_start="Start", x_end="Finish", y="Task")
+# fig.update_yaxes(autorange="reversed") # otherwise tasks are listed from the bottom up
+# #fig.show()
+#
+# st.write(fig)
 
 # from st_audiorec import st_audiorec
 #
