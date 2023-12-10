@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from llamahack import styles
 from llamahack.components.sidebar import sidebar
+from llamahack.components.meeting import meeting
 from typing import Callable
 
 import reflex as rx
