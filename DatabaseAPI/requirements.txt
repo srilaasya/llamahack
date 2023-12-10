@@ -1,4 +1,8 @@
 pymongo
 flask-cors
 jsonify
+<<<<<<< HEAD
 flask-ngrok
+=======
+flask_ngrok
+>>>>>>> 047fd5f (update)

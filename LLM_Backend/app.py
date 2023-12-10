@@ -1,8 +1,8 @@
 
 from flask import Flask, request, jsonify
 import json
-# from your_audio_processing_module import process_audio_with_whisper  # Replace with your actual module
-# from your_text_processing_module import process_text_with_cohere  # Replace with your actual module
+from whisper_audio_transcribe import transcribe_audio  # Replace with your actual module
+from together_task_output import generate_task_response  # Replace with your actual module
 
 app = Flask(__name__)
 
@@ -32,17 +32,21 @@ def extract_fields_from_line(line):
 def process_audio():
     try:
         # Assuming the MP3 data is sent in the 'audio' field of the request - uncomment later
-        print("before reading audio file name")
+        print("before reading audio data")
 
-        mp3_data = request.files['audio'].read()
+        mp3_data = request.data
 
-        print("after reading audio file name")
+        # print("mp3_data: ", mp3_data)
+
+        #mp3_data = request.files['audio'].read()
+
+        print("after reading audio data")
 
         # # Call the function from your_audio_processing_module - uncomment later
-        # text_result = process_audio_with_whisper(mp3_data)
+        text_result = transcribe_audio(mp3_data)
 
         # dummy text
-        text_result = ""
+        # text_result = ""
         # text_result = request.json['text']
         # text_result = json.loads(request.form['text'])
 
@@ -54,17 +58,11 @@ def process_audio():
         #     result_list.append(result)
 
         # json_result = json.dumps(result_list, indent=2)
-        dummy_json_data = {
-            "result": "success",
-            "message": "Audio processing completed",
-            "data": [
-                {"task": "Task 1", "description": "Description 1", "timeframe": "Timeframe 1"},
-                {"task": "Task 2", "description": "Description 2", "timeframe": "Timeframe 2"},
-                {"task": "Task 3", "description": "Description 3", "timeframe": "Timeframe 3"}
-            ]
+        json_data = {
+            "text": text_result
         }
 
-        return jsonify(dummy_json_data)
+        return jsonify(json_data)
 
     except Exception as e:
         # Handle any exceptions and return an error response
@@ -81,20 +79,22 @@ def process_text():
 
         text_result = request.json['text']
 
-        lines = text_result.strip().split('\n')
+        json_data = generate_task_response(text_result)
 
-        result_list = []
-        for line in lines:
-            result = extract_fields_from_line(line)
-            result_list.append(result)
+        # lines = text_result.strip().split('\n')
 
-        json_result = json.dumps(result_list, indent=2)
+        # result_list = []
+        # for line in lines:
+        #     result = extract_fields_from_line(line)
+        #     result_list.append(result)
 
-        return json_result
+        # json_result = json.dumps(result_list, indent=2)
+
+        return json_data
 
     except Exception as e:
         # Handle any exceptions and return an error response
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(port=8000, debug=True)
