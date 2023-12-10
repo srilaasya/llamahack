@@ -1,4 +1,6 @@
 from flask import Flask, request, jsonify
+from flask_ngrok import run_with_ngrok
+
 # Local application imports
 from db_operations import (
     create_task,
@@ -34,58 +36,44 @@ def tasks_route():
     elif request.method == 'GET':
         return read_all_tasks_route()
 
-@app.route('/tasks/<id>', methods=['GET', 'POST', 'DELETE'])
-def task_route(id):
-    # Extract the ObjectId string from the id parameter
-    try:
-        id = re.sub(r"\'", "\"", id)
-        id_dict = json.loads(id)
-        id = id_dict['$oid']
-    except json.JSONDecodeError:
-        pass  # If id is not a JSON string, assume it's a valid ObjectId string
-
+@app.route('/tasks/<taskID>', methods=['GET', 'POST', 'DELETE'])
+def task_route(taskID):
     if request.method == 'GET':
-        return read_task_route(id)
+        return read_task_route(taskID)
     elif request.method == 'POST':
-        return create_or_update_task_route(id)
+        return create_or_update_task_route(taskID)
     elif request.method == 'DELETE':
-        return delete_task_route(id)
+        return delete_task_route(taskID)
 
 
 def create_task_route():
     try:
         data = request.get_json()
-
         # Validate the dueDate field
         due_date = data.get('dueDate')
         if due_date:
             try:
-                # Try to parse the dueDate string as a datetime object
-                data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%f')
+                data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%fZ')
             except ValueError:
-                # If the dueDate string is not a valid datetime, return an error
                 return jsonify({'error': 'Invalid dueDate format. It should be in ISO 8601 format.'}), 400
-
-        create_task(data)
-        return jsonify({'message': 'Task created'}), 201
+        task_id = create_task(data)
+        return jsonify({'message': 'Task created', 'taskID': task_id}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
 
-def delete_all_tasks_route():
-    try:
-        tasks = read_all_tasks()
-        for task in tasks:
-            delete_task(str(task['_id']))  # Corrected line
-        return jsonify({'message': 'All tasks deleted'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+# def delete_all_tasks_route():
+#     try:
+#         delete_all_tasks()
+#         return jsonify({'message': 'All tasks deleted'}), 200
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 400
 
 
-def delete_task_route(id):
+def delete_task_route(taskID):
     try:
-        delete_task(id)
-        return jsonify({'message': 'Task deleted'}), 200
+        response, status_code = delete_task(taskID)
+        return jsonify(response), status_code
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -98,9 +86,10 @@ def read_all_tasks_route():
         return jsonify({'error': str(e)}), 400
 
 
-def read_task_route(id):
+@app.route('/tasks/<taskID>', methods=['GET'])
+def read_task_route(taskID):
     try:
-        task = read_task(id)
+        task = read_task(taskID)
         if task:
             return jsonify(task), 200
         else:
@@ -109,20 +98,18 @@ def read_task_route(id):
         return jsonify({'error': 'Error in read_task_route: ' + str(e)}), 400
 
 
-def create_or_update_task_route(id):
+def create_or_update_task_route(taskID):
     try:
         data = request.get_json()
-
         # Validate the dueDate field
         due_date = data.get('dueDate')
         if due_date:
             try:
-                # Try to parse the dueDate string as a datetime object
-                data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%f')
+                data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%fZ')
             except ValueError:
-                # If the dueDate string is not a valid datetime, return an error
                 return jsonify({'error': 'Invalid dueDate format. It should be in ISO 8601 format.'}), 400
-        # Rest of the code...
+        update_task(taskID, data)
+        return jsonify({'message': 'Task updated'}), 200
     except Exception as e:
         return jsonify({'error': 'Error in create_or_update_task_route: ' + str(e)}), 400
 
@@ -226,3 +213,4 @@ def delete_transcript_route(transcript_id):
 
 if __name__ == '__main__':
     app.run(port=8000, debug=True)
+    run_with_ngrok(app)

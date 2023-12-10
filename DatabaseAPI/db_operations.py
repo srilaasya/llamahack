@@ -24,7 +24,7 @@ def create_task(data):
     data['taskID'] = str(uuid.uuid4())
 
     # Check for required fields
-    required_fields = ['title', 'due_date', 'status']  # 'taskID' is already added, no need to check
+    required_fields = ['title', 'description', 'due_date', 'status']  # 'taskID' is already added, no need to check
     if not all(field in data for field in required_fields):
         missing_fields = ', '.join(field for field in required_fields if field not in data)
         raise Exception(f'Missing required field(s): {missing_fields}')
@@ -34,9 +34,9 @@ def create_task(data):
     return data['taskID']
 
 
-def read_task(id):
-    task = db.Tasks.find_one({'_id': ObjectId(id)})
-    return json.loads(json_util.dumps(task))
+def read_task(taskID):
+    task = db.Tasks.find_one({'taskID': taskID})
+    return json.loads(json_util.dumps(task)) if task else None
 
 
 def read_all_tasks():
@@ -44,12 +44,16 @@ def read_all_tasks():
     return json.loads(json_util.dumps(tasks))
 
 
-def update_task(id, data):
-    db.Tasks.update_one({'_id': ObjectId(id)}, {'$set': data})
+def update_task(taskID, data):
+    result = db.Tasks.update_one({'taskID': taskID}, {'$set': data})
+    return {'message': 'Task updated'} if result.modified_count > 0 else {'error': 'Task not found'}
 
 
-def delete_task(id):
-    db.Tasks.delete_one({'_id': ObjectId(id)})
+def delete_task(taskID):
+    result = db.Tasks.delete_one({'taskID': taskID})
+    if result.deleted_count == 0:
+        return {'error': 'Task not found'}, 404
+    return {'message': 'Task deleted'}, 200
 
 
 def create_meeting(data):
