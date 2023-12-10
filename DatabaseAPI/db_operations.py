@@ -57,25 +57,18 @@ def delete_task(taskID):
 
 
 def create_meeting(data):
-    # Check if taskID exists in the payload and if it corresponds to an existing task
     task_id = data.get('taskID')
     if not task_id:
         raise Exception('Missing taskID in the meeting data.')
 
-    # Verify that the task exists
     if db.Tasks.find_one({'taskID': task_id}) is None:
         raise Exception('Task with the provided taskID does not exist.')
+
     data['meetingID'] = str(uuid.uuid4())  # Generate a unique meetingID
+
     db.Meetings.insert_one(data)
 
     return {'message': 'Meeting created with taskID linkage'}, 201
-    # Generate a unique meetingID
-    data['meetingID'] = str(uuid.uuid4())
-
-    # Now insert the meeting data
-    db.Meetings.insert_one(data)
-
-    return {'message': 'Meeting created with taskID linkage'}, 200
 
 
 def delete_meeting(meeting_id):

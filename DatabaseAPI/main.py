@@ -46,9 +46,25 @@ def task_route(taskID):
         return delete_task_route(taskID)
 
 
-def create_task_route():
+# def create_task_route():
+#     try:
+#         data = request.get_json()
+#         # Validate the dueDate field
+#         due_date = data.get('dueDate')
+#         if due_date:
+#             try:
+#                 data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%fZ')
+#             except ValueError:
+#                 return jsonify({'error': 'Invalid dueDate format. It should be in ISO 8601 format.'}), 400
+#         task_id = create_task(data)
+#         return jsonify({'message': 'Task created', 'taskID': task_id}), 201
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 400
+
+def create_or_update_task_route(taskID):
     try:
         data = request.get_json()
+        
         # Validate the dueDate field
         due_date = data.get('dueDate')
         if due_date:
@@ -56,11 +72,23 @@ def create_task_route():
                 data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%fZ')
             except ValueError:
                 return jsonify({'error': 'Invalid dueDate format. It should be in ISO 8601 format.'}), 400
-        task_id = create_task(data)
-        return jsonify({'message': 'Task created', 'taskID': task_id}), 201
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
 
+        # Check if the task exists
+        existing_task = read_task(taskID)
+
+        if existing_task:
+            # If the task exists, update it
+            update_task(taskID, data)
+            return jsonify({'message': 'Task updated', 'taskID': taskID}), 200
+        else:
+            # If the task does not exist, create a new one
+            if 'taskID' in data:
+                del data['taskID']  # Ensure taskID is not duplicated in data
+            task_id = create_task(data)
+            return jsonify({'message': 'New task created', 'taskID': task_id}), 201
+
+    except Exception as e:
+        return jsonify({'error': 'Error in create_or_update_task_route: ' + str(e)}), 400
 
 # def delete_all_tasks_route():
 #     try:
@@ -98,20 +126,20 @@ def read_task_route(taskID):
         return jsonify({'error': 'Error in read_task_route: ' + str(e)}), 400
 
 
-def create_or_update_task_route(taskID):
-    try:
-        data = request.get_json()
-        # Validate the dueDate field
-        due_date = data.get('dueDate')
-        if due_date:
-            try:
-                data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%fZ')
-            except ValueError:
-                return jsonify({'error': 'Invalid dueDate format. It should be in ISO 8601 format.'}), 400
-        update_task(taskID, data)
-        return jsonify({'message': 'Task updated'}), 200
-    except Exception as e:
-        return jsonify({'error': 'Error in create_or_update_task_route: ' + str(e)}), 400
+# def create_or_update_task_route(taskID):
+#     try:
+#         data = request.get_json()
+#         # Validate the dueDate field
+#         due_date = data.get('dueDate')
+#         if due_date:
+#             try:
+#                 data['dueDate'] = datetime.strptime(due_date, '%Y-%m-%dT%H:%M:%S.%fZ')
+#             except ValueError:
+#                 return jsonify({'error': 'Invalid dueDate format. It should be in ISO 8601 format.'}), 400
+#         update_task(taskID, data)
+#         return jsonify({'message': 'Task updated'}), 200
+#     except Exception as e:
+#         return jsonify({'error': 'Error in create_or_update_task_route: ' + str(e)}), 400
 
 
 @app.route('/meetings', methods=['POST', 'GET'])
@@ -137,26 +165,21 @@ def create_meeting_route():
         time = data.get('time')
         if date and time:
             try:
-                # Try to parse the date and time strings as datetime objects
-                data['date'] = datetime.strptime(date, '%Y-%m-%d').date()
-                data['time'] = datetime.strptime(time, '%H:%M:%S').time()
+                # Convert the date and time to strings
+                datetime.strptime(date, '%Y-%m-%d').date()  # Validates date format
+                datetime.strptime(time, '%H:%M:%S').time()  # Validates time format
             except ValueError as ve:
-                # If the date or time string is not a valid datetime, return an error
                 return jsonify({'error': 'Invalid date or time format. ' + str(ve)}), 400
 
-        # Check required fields for creating a meeting
         required_fields = ['taskID', 'title', 'date', 'time', 'email']
         if not all(field in data for field in required_fields):
             missing_fields = ', '.join(field for field in required_fields if field not in data)
             return jsonify({'error': f'Missing required field(s): {missing_fields}'}), 400
 
-        # Ensure the taskID exists in the Tasks collection
-        task_id = data.get('taskID')
-        task = read_task(task_id)
+        task = read_task(data['taskID'])
         if not task:
             return jsonify({'error': 'Task with the provided taskID does not exist.'}), 404
 
-        # Create meeting and link it to the taskID
         response, status_code = create_meeting(data)
         return jsonify(response), status_code
     except Exception as e:
